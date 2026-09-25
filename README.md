@@ -16,6 +16,14 @@ get an email with a link to watch the recordings.
    the review page, where you can watch each answer (at 1x to 2x speed), download it, or delete the
    interview. The candidate also gets a short "we received your interview" email.
 
+4. **English score.** When an interview finishes, each answer is transcribed (Deepgram) and Claude
+   grades the candidate's spoken English: a CEFR level (A1 to C2), a score out of 100, fluency /
+   grammar / vocabulary / coherence out of 5, a short summary, strengths and concerns, plus a
+   summary and relevance score per answer. The level is in the email subject, the dashboard list
+   and the review page, where you can also read each transcript (with words per minute and filler
+   word counts) and re-run the assessment. It needs `DEEPGRAM_API_KEY` and `ANTHROPIC_API_KEY`;
+   without them everything else still works.
+
 If the candidate refreshes or loses their connection, they pick up at the next unanswered question
 with the same timer. Interviews that run out of time without finishing show as **Incomplete**.
 
@@ -44,6 +52,8 @@ The questions and timings are in [`lib/config.ts`](lib/config.ts).
    | `ADMIN_PASSWORD` | Password for `/admin` |
    | `APP_SECRET` | Random string for signing links: `openssl rand -hex 32` |
    | `APP_URL` | Public URL used in emails, e.g. `https://interview.getaiso.com` |
+   | `DEEPGRAM_API_KEY` | Speech-to-text for transcripts (optional) |
+   | `ANTHROPIC_API_KEY` | Claude, for the English assessment (optional) |
    | `COMPANY_NAME` | Shown to candidates and used in question 3. Defaults to `Aiso`. |
 
 4. Redeploy, open `/admin`, and send yourself a test invite.
@@ -61,5 +71,7 @@ Camera access needs `https` or `localhost`.
 ## Notes
 
 - Recordings are about 1 Mbps, so a 4 minute answer is around 30 MB.
+- The assessment is automatic and works from transcripts, so it cannot judge pronunciation or
+  accent. Treat it as a first filter and watch the videos before deciding.
 - Changing `APP_SECRET` invalidates every link already sent and signs you out.
 - Changing `ADMIN_PASSWORD` signs out every admin session.

@@ -5,7 +5,8 @@ import { revalidatePath } from "next/cache";
 import { endAdminSession, requireAdmin } from "@/lib/auth";
 import { INVITE_VALID_DAYS } from "@/lib/config";
 import { sendInvite } from "@/lib/email";
-import { createInterview, deleteInterview, type Meta } from "@/lib/store";
+import { createInterview, deleteInterview, getInterview, type Meta } from "@/lib/store";
+import { analyzeInterview } from "@/lib/analysis";
 import { newInterviewId, signInvite } from "@/lib/token";
 import { appUrl } from "@/lib/url";
 
@@ -68,4 +69,13 @@ export async function removeInterview(formData: FormData) {
 export async function logout() {
   await endAdminSession();
   redirect("/admin/login");
+}
+
+export async function rerunAnalysis(formData: FormData) {
+  await requireAdmin();
+  const id = String(formData.get("id") ?? "");
+  if (!/^[A-Za-z0-9_-]+$/.test(id)) return;
+  const interview = await getInterview(id);
+  if (interview) await analyzeInterview(interview);
+  revalidatePath(`/admin/i/${id}`);
 }

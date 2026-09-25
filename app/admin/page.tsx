@@ -51,6 +51,7 @@ export default async function AdminPage() {
                   <th>Role</th>
                   <th>Status</th>
                   <th>Answers</th>
+                  <th>English</th>
                   <th>Invited</th>
                   <th />
                 </tr>
@@ -67,6 +68,15 @@ export default async function AdminPage() {
                     <td>{i.meta.role ?? <span className="muted">-</span>}</td>
                     <td><StatusPill status={i.status} /></td>
                     <td>{i.answers.length} / {QUESTIONS.length}</td>
+                    <td>
+                      {i.analysis?.status === "done" ? (
+                        <span className="pill invited">
+                          {i.analysis.assessment.cefr} · {i.analysis.assessment.overall_score}
+                        </span>
+                      ) : (
+                        <span className="muted">-</span>
+                      )}
+                    </td>
                     <td className="muted">{fmt(i.meta.createdAt)}</td>
                     <td style={{ textAlign: "right" }}>
                       {i.answers.length > 0 ? (

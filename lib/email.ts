@@ -1,6 +1,6 @@
 import { Resend } from "resend";
 import { COMPANY_NAME, QUESTIONS, TOTAL_LIMIT_SECONDS } from "./config";
-import type { Interview, Meta } from "./store";
+import type { Analysis, Interview, Meta } from "./store";
 
 function client() {
   const key = process.env.RESEND_API_KEY;
@@ -72,12 +72,18 @@ export async function sendInvite(meta: Meta, link: string) {
   });
 }
 
-export async function sendCompletedToAdmin(interview: Interview, reviewUrl: string) {
+export async function sendCompletedToAdmin(interview: Interview, reviewUrl: string, analysis: Analysis | null) {
   const to = adminRecipients();
   if (!to.length) return;
   const { meta, answers } = interview;
   const role = meta.role ? ` (${meta.role})` : "";
   const answered = `${answers.length} of ${QUESTIONS.length}`;
+  const a = analysis?.status === "done" ? analysis.assessment : null;
+  const scoreLine = a
+    ? `English: ${a.cefr} (${a.overall_score}/100). Fluency ${a.fluency}/5, grammar ${a.grammar}/5, vocabulary ${a.vocabulary}/5, coherence ${a.coherence}/5.`
+    : analysis?.status === "failed"
+      ? "The automatic English assessment failed; you can re-run it from the review page."
+      : "";
 
   const rows = QUESTIONS.map((q, i) => {
     const a = answers.find((x) => x.question === i + 1);
@@ -87,10 +93,12 @@ export async function sendCompletedToAdmin(interview: Interview, reviewUrl: stri
   await send({
     to,
     replyTo: meta.email,
-    subject: `Interview completed: ${meta.name}${role}`,
+    subject: `Interview completed: ${meta.name}${role}${a ? ` · English ${a.cefr}` : ""}`,
     text: [
       `${meta.name} <${meta.email}> finished their video interview${role}.`,
       `Answered: ${answered}`,
+      ...(scoreLine ? ["", scoreLine] : []),
+      ...(a ? [a.summary] : []),
       "",
       ...rows,
       "",
@@ -99,6 +107,18 @@ export async function sendCompletedToAdmin(interview: Interview, reviewUrl: stri
     html: layout(`
       <p><strong>${esc(meta.name)}</strong> &lt;${esc(meta.email)}&gt; finished their video interview${esc(role)}.</p>
       <p>Answered: ${answered}</p>
+      ${
+        a
+          ? `<div style="background:#faf9ff;border:1px solid rgba(109,90,232,.16);border-radius:14px;padding:16px;margin:16px 0">
+        <div style="font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:#6d5ae8;font-weight:600">English level</div>
+        <div style="font-size:28px;font-weight:700;margin:4px 0">${a.cefr} <span style="font-size:16px;font-weight:500;color:rgba(15,11,30,.55)">${a.overall_score}/100</span></div>
+        <div style="color:rgba(15,11,30,.55);font-size:14px">Fluency ${a.fluency}/5 · Grammar ${a.grammar}/5 · Vocabulary ${a.vocabulary}/5 · Coherence ${a.coherence}/5</div>
+        <p style="margin:12px 0 0">${esc(a.summary)}</p>
+      </div>`
+          : scoreLine
+            ? `<p style="color:rgba(15,11,30,.55)">${esc(scoreLine)}</p>`
+            : ""
+      }
       <ol>${QUESTIONS.map((q, i) => {
         const a = answers.find((x) => x.question === i + 1);
         return `<li>${esc(q.title)} <span style="color:rgba(15,11,30,.55)">${a ? "" : "(not answered)"}</span></li>`;

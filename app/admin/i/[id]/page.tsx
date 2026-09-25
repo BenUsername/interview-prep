@@ -10,8 +10,11 @@ import { StatusPill } from "@/app/components/StatusPill";
 import { CopyButton } from "@/app/components/CopyButton";
 import { removeInterview } from "../../actions";
 import { ReviewVideo } from "./ReviewVideo";
+import { AssessmentCard } from "./Assessment";
 
 export const dynamic = "force-dynamic";
+// The "Re-run" assessment action transcribes and grades inline.
+export const maxDuration = 300;
 
 const fmt = (iso: string) =>
   new Date(iso).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
@@ -57,8 +60,15 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
         </div>
       </section>
 
+      <AssessmentCard interview={interview} />
+
       {QUESTIONS.map((q, i) => {
         const answer = answers.find((a) => a.question === i + 1);
+        const transcript = interview.analysis?.transcripts?.find((t) => t.question === i + 1);
+        const graded =
+          interview.analysis?.status === "done"
+            ? interview.analysis.assessment.answers.find((x) => x.question === i + 1)
+            : undefined;
         const src = answer ? `/api/admin/video?path=${encodeURIComponent(answer.pathname)}` : null;
         return (
           <section key={i} className="card stack">
@@ -75,6 +85,24 @@ export default async function ReviewPage({ params }: { params: Promise<{ id: str
                     <Download size={14} strokeWidth={2} /> Download
                   </a>
                 </div>
+                {graded && (
+                  <p className="small">
+                    <strong>Relevance {graded.relevance}/5.</strong> {graded.summary}
+                  </p>
+                )}
+                {transcript && (
+                  <details className="transcript">
+                    <summary>
+                      Transcript
+                      <span className="muted small">
+                        {" "}
+                        · {Math.floor(transcript.durationSec / 60)}m {transcript.durationSec % 60}s ·{" "}
+                        {transcript.wpm} words/min · {transcript.fillers} filler words
+                      </span>
+                    </summary>
+                    <p>{transcript.transcript || <span className="muted">No speech detected.</span>}</p>
+                  </details>
+                )}
               </>
             ) : (
               <p className="muted">Not answered yet.</p>

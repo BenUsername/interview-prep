@@ -8,6 +8,7 @@ import { QUESTIONS, TOTAL_LIMIT_SECONDS, UPLOAD_GRACE_SECONDS } from "./config";
  *   interviews/<id>/started.json     written once, when the candidate presses Start
  *   interviews/<id>/answer-<n>.<ext> one recording per question (n = 1..3), never overwritten
  *   interviews/<id>/completed.json   written once, when the candidate finishes
+ *   interviews/<id>/analysis.json    transcripts + English assessment (see lib/analysis.ts)
  *
  * Status is derived from which files exist, so there is no database to run.
  */
@@ -31,11 +32,34 @@ export type Answer = {
   uploadedAt: string;
 };
 
+export type AnswerTranscript = {
+  question: number;
+  transcript: string;
+  durationSec: number;
+  /** Spoken words, not counting fillers like "um". */
+  words: number;
+  wpm: number;
+  fillers: number;
+  /** Mean speech-recognition confidence, 0 to 1. Low values often mean unclear speech or audio. */
+  confidence: number;
+};
+
+export type Analysis =
+  | {
+      status: "done";
+      createdAt: string;
+      model: string;
+      transcripts: AnswerTranscript[];
+      assessment: import("./analysis").Assessment;
+    }
+  | { status: "failed"; createdAt: string; error: string; transcripts?: AnswerTranscript[] };
+
 export type Interview = {
   meta: Meta;
   started: Started | null;
   completed: Completed | null;
   answers: Answer[];
+  analysis: Analysis | null;
   status: "invited" | "in_progress" | "incomplete" | "completed" | "expired";
   deadline: number | null;
 };
@@ -129,10 +153,11 @@ export async function getInterview(id: string): Promise<Interview | null> {
   const names = new Set(blobs.map((b) => b.pathname.slice(folder(id).length)));
   if (!names.has("meta.json")) return null;
 
-  const [meta, started, completed] = await Promise.all([
+  const [meta, started, completed, analysis] = await Promise.all([
     readJson<Meta>(`${folder(id)}meta.json`),
     names.has("started.json") ? readJson<Started>(`${folder(id)}started.json`) : null,
     names.has("completed.json") ? readJson<Completed>(`${folder(id)}completed.json`) : null,
+    names.has("analysis.json") ? readJson<Analysis>(`${folder(id)}analysis.json`) : null,
   ]);
   if (!meta) return null;
 
@@ -162,7 +187,17 @@ export async function getInterview(id: string): Promise<Interview | null> {
   else if (Date.now() > new Date(meta.expiresAt).getTime()) status = "expired";
   else status = "invited";
 
-  return { meta, started, completed, answers, status, deadline };
+  return { meta, started, completed, answers, analysis, status, deadline };
+}
+
+/** Unlike the other files, the analysis can be re-run, so it is overwritten. */
+export async function saveAnalysis(id: string, analysis: Analysis) {
+  await put(`${folder(id)}analysis.json`, JSON.stringify(analysis), {
+    access: "private",
+    contentType: "application/json",
+    addRandomSuffix: false,
+    allowOverwrite: true,
+  });
 }
 
 export async function listInterviews(limit = 200): Promise<Interview[]> {
