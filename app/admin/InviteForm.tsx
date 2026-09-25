@@ -25,7 +25,9 @@ export function InviteForm() {
           <input type="email" name="email" placeholder="jane@example.com" required />
         </label>
         <label>
-          Role <span className="muted small">(optional)</span>
+          <span>
+            Role <span className="muted">(optional)</span>
+          </span>
           <input type="text" name="role" placeholder="Growth marketer" />
         </label>
       </div>
